@@ -148,15 +148,39 @@
 (defun attributes-matched? (plist1 plist2)
   "All attributes in plist2 must be conformant to the ones in plist1"
   (loop for (key . rest) on plist2 by #'cddr
-       always (equal (first rest) (getf plist1 key))))
+     always (equal (first rest) (getf plist1 key))))
 
 
 
 
 
+  
+(defun handle-weird-html-symbols (str)
+  ;; Replace frequently used html symbols like
+  ;; '&amp;', '&quot;', '&lt;', '&gt;', '&nbsp;'
+  ;; with '&', '"', '<', '>', ' ', respectably
+  (ppcre:regex-replace-all
+   "(&amp;|&quot;|&nbsp;|&lt;|&gt;)"
+   html
+   (lambda (match &rest registers)
+     (declare (ignore registers))
+     (cond ((string-equal match "&amp;") "&")
+	   ((string-equal match "&quot;") "\"")
+	   ((string-equal match "&nbsp;") " ")
+	   ((string-equal match "&lt;") "<")
+	   ((string-equal match "&gt;") ">")))
+   :simple-calls t))
 
-
-
-
-
-
+;; Not perfect but usable at the moment.
+(defun text-only (tagged &key (remove '(:table :iframe :img)))
+  "Extract only text from tagged and returns a string.
+   Losing some of the information (like paragraph delimiters) is inevitable,
+   or at least, preferable
+   Tags in 'remove' are simply ignored"
+  (handle-weird-html-symbols 
+   (format nil "~{~A~^ ~}"
+	   (mapcar #'(lambda (node)
+		       (cond ((stringp node) string)
+			     ((tag? node) "")
+			     (t (text-only node))))
+		   (nodes tagged)))))

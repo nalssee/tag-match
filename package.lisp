@@ -18,6 +18,9 @@
   (:use :cl :alexandria :tag-match.pipe)
   (:export :find-tagged
 	   :build-tagged
+	   
+	   :tag
+	   :nodes
 
 	   :head
 	   :tail

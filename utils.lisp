@@ -1,22 +1,36 @@
 (in-package :tag-match)
 
-
-(defun file->string (path)
-  "Read a whole file and store it in a string"
-  (with-open-file (stream path)
-    (let ((data (make-array (file-length stream)
-			    :element-type 'character :fill-pointer t)))
-      (setf (fill-pointer data)
-	    (read-sequence data stream))
-      data)))
+;;; utilities
+;;; not even close to perfection, but usable 
 
 
-(defun plist? (xs)
-  "Not just an ordinary plist, tests if it's an alternating keyword string list
-   which represents attribute-value pairs
-  "
-  (and xs
-       (proper-list-p xs)
-       (loop for (k v . nil) on xs by #'cddr
-	  always (and (keywordp k) (stringp v)))))
+(defun handle-weird-html-symbols (str)
+  ;; Replace frequently used html symbols like
+  ;; '&amp;', '&quot;', '&lt;', '&gt;', '&nbsp;'
+  ;; with '&', '"', '<', '>', ' ', respectably
+  (ppcre:regex-replace-all
+   "(&amp;|&quot;|&nbsp;|&lt;|&gt;)"
+   html
+   (lambda (match &rest registers)
+     (declare (ignore registers))
+     (cond ((string-equal match "&amp;") "&")
+	   ((string-equal match "&quot;") "\"")
+	   ((string-equal match "&nbsp;") " ")
+	   ((string-equal match "&lt;") "<")
+	   ((string-equal match "&gt;") ">")))
+   :simple-calls t))
+
+;; Not perfect but usable at the moment.
+(defun text-only (tagged &key (remove '(:table :iframe :img)))
+  "Extract only text from tagged and returns a string.
+   Losing some of the information (like paragraph delimiters) is inevitable,
+   or at least, preferable
+   Tags in 'remove' are simply ignored"
+  (handle-weird-html-symbols 
+   (format nil "~{~A~^ ~}"
+	   (mapcar #'(lambda (node)
+		       (cond ((stringp node) string)
+			     ((tag? node) "")
+			     (t (text-only node))))
+		   (nodes tagged)))))
 

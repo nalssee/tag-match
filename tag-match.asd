@@ -22,9 +22,11 @@
   :depends-on (:cl-html-parse :alexandria)
   :serial t
   :components ((:file "package")
-	       (:file "utils")
 	       (:file "pipe")
-	       (:file "tag-match"))
+	       
+	       (:file "helpers")	       
+	       (:file "tag-match")
+	       (:file "utils"))
   
   )
 
