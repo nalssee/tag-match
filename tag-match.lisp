@@ -26,13 +26,13 @@
 
 
 (defclass tagged ()
-  ((tag :initarg :tag :reader tag)
+  ((tag :initarg :tag :reader tagged-tag)
    (nodes :initarg :nodes
 	  :initform nil
-	  :reader nodes)))
+	  :reader tagged-nodes)))
 
 (defclass tag ()
-  ((name :initarg :name :reader name)
+  ((name :initarg :name :reader tag-name)
    (attr-val-plist :initarg :attr-val-plist
 		   :reader attr-val-plist
 		   :initform nil)))
@@ -96,12 +96,12 @@
 (defmethod print-object ((tagged tagged) stream)
   (labels ((print-tagged (tagged offset)
 	     (loop repeat offset do (format stream " "))	     
-	     (print-tag (tag tagged))
+	     (print-tag (tagged-tag tagged))
 	     (terpri stream)
-	     (loop for node in (nodes tagged) do
+	     (loop for node in (tagged-nodes tagged) do
 		  (print-node node (+ +base-offset+ offset))
 		  (terpri stream)))
-	   (print-tag (tag) (format stream "<~{~S~^ ~}>" (cons (name tag) (attr-val-plist tag))))
+	   (print-tag (tag) (format stream "<~{~S~^ ~}>" (cons (tag-name tag) (attr-val-plist tag))))
 	   (print-node (node offset)
 	     (cond ((stringp node)
 		    (loop repeat offset do (format stream " "))
@@ -125,21 +125,37 @@
 
 ;;; Don't attempt to implement going up the tree.
 ;;; Sounds fancy but useless.
+
 (defun find-tagged (tagged &rest plist)
-  (cond ((or (stringp tagged) (tag? tagged)) ; is it a leaf?
-	 empty-pipe)
-	((tag-matched? (tag tagged) plist)
-	 (make-pipe tagged
-		    (apply #'pipe-append
-			   (loop for node in (nodes tagged) collect
-				(apply #'find-tagged node plist)))))
-	(t (apply #'pipe-append
-		  (loop for node in (nodes tagged) collect
-		       (apply #'find-tagged node plist))))))
+  "when tagged is nil returns nil"
+  (assert (or (plist? plist)
+	      (and (>= (length plist) 2)
+		   (keywordp (first plist))
+		   (keywordp (second plist))))
+	  (plist) "invalid search form ~A" plist)
+  (labels ((really-find-tagged (tagged plist)
+	     (cond ((or (stringp tagged) (tag? tagged)) ; is it a leaf?
+		    empty-pipe)
+		   ((tag-matched? (tagged-tag tagged) plist)
+		    (make-pipe tagged
+			       (apply #'pipe-append
+				      (loop for node in (tagged-nodes tagged) collect
+					   (really-find-tagged node plist)))))
+		   (t (apply #'pipe-append
+			     (loop for node in (tagged-nodes tagged) collect
+				  (really-find-tagged node plist)))))))
+    (when tagged
+      (really-find-tagged tagged plist)
+      )
+    ))
+
+
+
+
 
 (defun tag-matched? (tag plist)
   (cond ((getf plist +tag-name-keyword+)
-	 (and (eql (name tag) (getf plist +tag-name-keyword+))
+	 (and (eql (tag-name tag) (getf plist +tag-name-keyword+))
 	      (attributes-matched? (attr-val-plist tag)
 				   (remove-from-plist plist +tag-name-keyword+))))
 	((not (attr-val-plist tag)) nil)
@@ -155,32 +171,3 @@
 
 
   
-(defun handle-weird-html-symbols (str)
-  ;; Replace frequently used html symbols like
-  ;; '&amp;', '&quot;', '&lt;', '&gt;', '&nbsp;'
-  ;; with '&', '"', '<', '>', ' ', respectably
-  (ppcre:regex-replace-all
-   "(&amp;|&quot;|&nbsp;|&lt;|&gt;)"
-   html
-   (lambda (match &rest registers)
-     (declare (ignore registers))
-     (cond ((string-equal match "&amp;") "&")
-	   ((string-equal match "&quot;") "\"")
-	   ((string-equal match "&nbsp;") " ")
-	   ((string-equal match "&lt;") "<")
-	   ((string-equal match "&gt;") ">")))
-   :simple-calls t))
-
-;; Not perfect but usable at the moment.
-(defun text-only (tagged &key (remove '(:table :iframe :img)))
-  "Extract only text from tagged and returns a string.
-   Losing some of the information (like paragraph delimiters) is inevitable,
-   or at least, preferable
-   Tags in 'remove' are simply ignored"
-  (handle-weird-html-symbols 
-   (format nil "~{~A~^ ~}"
-	   (mapcar #'(lambda (node)
-		       (cond ((stringp node) string)
-			     ((tag? node) "")
-			     (t (text-only node))))
-		   (nodes tagged)))))

@@ -19,7 +19,7 @@
 
 
 (asdf:defsystem :tag-match
-  :depends-on (:cl-html-parse :alexandria)
+  :depends-on (:cl-html-parse :alexandria :cl-ppcre)
   :serial t
   :components ((:file "package")
 	       (:file "pipe")

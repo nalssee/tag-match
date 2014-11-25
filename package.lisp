@@ -18,9 +18,16 @@
   (:use :cl :alexandria :tag-match.pipe)
   (:export :find-tagged
 	   :build-tagged
+
+	   :tagged?
+	   :tag?
 	   
-	   :tag
-	   :nodes
+	   :tagged-tag
+	   :tagged-nodes
+	   :tag-name
+	   :attr-val-plist
+
+	   :text-only
 
 	   :head
 	   :tail

@@ -10,7 +10,7 @@
   ;; with '&', '"', '<', '>', ' ', respectably
   (ppcre:regex-replace-all
    "(&amp;|&quot;|&nbsp;|&lt;|&gt;)"
-   html
+   str
    (lambda (match &rest registers)
      (declare (ignore registers))
      (cond ((string-equal match "&amp;") "&")
@@ -26,11 +26,15 @@
    Losing some of the information (like paragraph delimiters) is inevitable,
    or at least, preferable
    Tags in 'remove' are simply ignored"
-  (handle-weird-html-symbols 
-   (format nil "~{~A~^ ~}"
-	   (mapcar #'(lambda (node)
-		       (cond ((stringp node) string)
-			     ((tag? node) "")
-			     (t (text-only node))))
-		   (nodes tagged)))))
+  (when tagged
+    (handle-weird-html-symbols 
+     (format nil "~{~A~^ ~}"
+	     (mapcar #'(lambda (node)
+			 (cond ((stringp node) node)
+			       ((tag? node) "")
+			       ((member (tag-name (tagged-tag node)) remove) (format nil ""))
+			       (t (text-only node))))
+		     (tagged-nodes tagged))))))
+
+
 
